@@ -14,7 +14,7 @@ const SECURITY_CODE = "kevaris 57744";
 
 const GROQ_API_KEY   = process.env.GROQ_API_KEY   || "YOUR_GROQ_API_KEY_HERE";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || "YOUR_CLAUDE_API_KEY_HERE";
+const QWEN_API_KEY   = process.env.QWEN_API_KEY   || process.env.OPENROUTER_API_KEY || "YOUR_QWEN_OR_OPENROUTER_API_KEY_HERE";
 const SERPER_API_KEY = process.env.SERPER_API_KEY || "YOUR_SERPER_API_KEY_HERE";
 
 const PORT = process.env.PORT || 3000;
@@ -94,29 +94,32 @@ async function queryGemini(prompt) {
 }
 
 // =========================================================================
-// 🧠 HELPER 4: Claude Engine (Anthropic - Final Recipe Consensus & Refinement)
+// 🧠 HELPER 4: Qwen Engine (via OpenRouter Free Tier - Chief AI Director)
 // =========================================================================
-async function queryClaude(systemPrompt, userPrompt) {
-    if (!CLAUDE_API_KEY || CLAUDE_API_KEY.includes("YOUR_")) return null;
+async function queryQwen(systemPrompt, userPrompt) {
+    if (!QWEN_API_KEY || QWEN_API_KEY.includes("YOUR_")) return null;
     try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
-                "x-api-key": CLAUDE_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json"
+                "Authorization": `Bearer ${QWEN_API_KEY}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/Kevaris/ChefSync",
+                "X-Title": "ChefSync AI"
             },
             body: JSON.stringify({
-                model: "claude-3-5-sonnet-20241022",
-                max_tokens: 1024,
-                system: systemPrompt,
-                messages: [{ role: "user", content: userPrompt }]
+                model: "qwen/qwen-2.5-72b-instruct:free",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.6
             })
         });
         const data = await res.json();
-        return data.content?.[0]?.text || null;
+        return data.choices?.[0]?.message?.content || null;
     } catch (err) {
-        console.error("Claude API Error:", err.message);
+        console.error("Qwen API Error:", err.message);
         return null;
     }
 }
@@ -159,8 +162,8 @@ app.post("/chat", async (req, res) => {
             queryGemini(geminiPrompt)
         ]);
 
-        // 5. Step C: Council Consensus via Claude
-        const claudeSystemPrompt = `You are ChefSync's Chief AI Culinary Director. 
+        // 5. Step C: Council Consensus via Qwen
+        const qwenSystemPrompt = `You are ChefSync's Chief AI Culinary Director (powered by Qwen). 
 Your goal is to synthesize inputs from our search engine and secondary AI models into a clean, simple, bachelor-friendly recipe.
 
 Formatting Guidelines:
@@ -169,7 +172,7 @@ Formatting Guidelines:
 - Focus on minimal cookware, quick prep time, and practical taste.
 - Format with clear headings and bullet points using HTML line breaks where needed.`;
 
-        const claudeUserPrompt = `User Request: ${message}
+        const qwenUserPrompt = `User Request: ${message}
 
 Model Draft 1 (Groq):
 ${groqDraft || "N/A"}
@@ -182,9 +185,9 @@ ${searchContext || "N/A"}
 
 Please synthesize this into the final ChefSync recipe response.`;
 
-        let finalReply = await queryClaude(claudeSystemPrompt, claudeUserPrompt);
+        let finalReply = await queryQwen(qwenSystemPrompt, qwenUserPrompt);
 
-        // Fallback Strategy: If Claude fails or key is missing, return Groq or Gemini's response
+        // Fallback Strategy: If Qwen fails or key is missing, return Groq or Gemini's response
         if (!finalReply) {
             finalReply = groqDraft || geminiDraft || "⚠️ AI Council synthesization failed. Please verify API keys in server configuration.";
         }
@@ -205,4 +208,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });
-          
+        
