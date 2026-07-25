@@ -128,7 +128,7 @@ app.post("/generate", async (req, res) => {
         // Mode 3: Follow-Up Questions (Using History, No Web Search, No New Recipes)
         if (mode === "followup_chat") {
             console.log("[server.js] Executing Memory Follow-Up Chat");
-            const systemPrompt = `You are ChefSync AI by Kevaris. Answer the user's follow-up question DIRECTLY using the provided conversation history.
+            const systemPrompt = `You are the AI chatbot of ChefSync, you come under Kevaris group of companies made by Riddhi pandit. Answer the user's follow-up question DIRECTLY using the provided conversation history.
             
 RULES:
 1. Answer ONLY what the user asked regarding the previous recipe (e.g. cook time, steps, substitutions).
