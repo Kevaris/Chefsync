@@ -73,7 +73,6 @@
 
         #input-area { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; }
         
-        /* Dynamic Ingredient Input Styles */
         #ingredients-builder { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; padding-right: 4px; }
         .ing-row { display: flex; align-items: center; gap: 8px; }
         .ing-num { font-weight: bold; color: var(--accent); min-width: 22px; font-size: 14px; text-align: right; }
@@ -107,7 +106,6 @@
         #splash-title { color: #333; font-size: 22px; font-weight: 600; margin: 0; opacity: 0.9; }
         #splash-subtitle { color: #777; font-size: 14px; margin: 6px 0 0 0; }
 
-        /* Mini Kevaris Help Chatbox */
         #mini-kevaris-box { border: 1px solid #ddd; border-radius: 12px; height: 260px; overflow-y: auto; padding: 10px; background: #fdfdfd; display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
         .mini-input-area { display: flex; gap: 8px; }
         .mini-input-area input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
@@ -139,7 +137,6 @@
     </div>
 
     <div id="input-area">
-        <!-- Ingredient Mode Input Builder -->
         <div id="ingredients-builder">
             <div class="ing-row">
                 <span class="ing-num">1.</span>
@@ -151,15 +148,9 @@
             </div>
         </div>
 
-        <!-- Controls Row -->
         <div class="controls-row">
-            <!-- Normal Chat Input (Shown when ingredient mode is OFF) -->
             <input id="user-input" placeholder="Ask follow-up questions about recipe..." autocomplete="off">
-            
-            <!-- Toggle Mode Button -->
             <button id="toggle-mode-btn" class="btn-icon" onclick="toggleIngMode()">🥗 Ingredients</button>
-            
-            <!-- Send Button -->
             <button id="send-btn" class="btn-icon" onclick="send()">➔</button>
         </div>
     </div>
@@ -170,16 +161,16 @@
     <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; text-align: center;">
         <img src="https://www.image2url.com/r2/default/images/1783649854423-f3662bab-45c4-4233-b2cc-aec5bc84b8fa.jpg" alt="ChefSync" style="width:90px; border-radius: 18px;">
         <h2 style="color: #00735a; font-size: 28px; margin-bottom: 5px;">ChefSync Engine</h2>
-        <p style="color: #777; font-size: 14px; margin-bottom: 15px;"><b>Version:</b> ChefSync 1.0 (Multi-Agent)</p>
+        <p style="color: #777; font-size: 14px; margin-bottom: 15px;"><b>Version:</b> ChefSync 2.0 (Dual-Backend Pipeline)</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
         <p style="color: #444; line-height: 1.6; font-size: 15px; text-align: justify;">
-            <b>ChefSync</b> is a web-based multi-AI culinary council designed specifically for bachelors, students, and home cooks. Instead of relying on a single AI model, ChefSync orchestrates a real-time debate between Groq, Gemini, and Claude to craft optimal, easy-to-cook recipes using only the limited ingredients available in your kitchen.
+            <b>ChefSync</b> is a web-based multi-AI culinary council designed specifically for bachelors, students, and home cooks. Using a Python router pipeline paired with a multi-model Node.js engine, it crafts optimal recipes using your available pantry components.
         </p>
         <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #00735a;">
             <h4 style="margin-top: 0; color: #00735a; font-size: 16px;">Core Architecture</h4>
             <ul style="padding-left: 18px; font-size: 13px; color: #555;">
-                <li style="margin-bottom: 6px;"><b>Multi-AI Council:</b> Groq, Gemini & Claude working in consensus.</li>
-                <li style="margin-bottom: 6px;"><b>Live Pantry Search:</b> Real-time culinary verification via Serper API.</li>
+                <li style="margin-bottom: 6px;"><b>Backend I (server.py):</b> Intent routing & pipeline orchestration.</li>
+                <li style="margin-bottom: 6px;"><b>Backend II (server.js):</b> Multi-AI Council (Groq, Gemini, Qwen) & Serper search.</li>
                 <li style="margin-bottom: 6px;"><b>Bachelor Optimization:</b> Low time, minimal utensils, simple steps.</li>
             </ul>
         </div>
@@ -205,15 +196,15 @@
     <div style="max-width: 600px; margin: 0 auto;">
         <h2>❓ How to Use ChefSync</h2>
         <ol style="font-size: 14px; line-height: 1.6; color: #444; padding-left: 20px;">
-            <li><b>Entering Ingredients:</b> Use the serial-numbered lines to list ingredients available in your pantry. A new line will automatically appear as you fill them out!</li>
-            <li><b>Switching to Chat Mode:</b> Tap the <b>🥗 / 💬 Toggle</b> button to ask standard questions or request recipe modifications.</li>
-            <li><b>Multi-AI Council:</b> ChefSync automatically prompts 3 AI models and live search to give you the most reliable step-by-step recipe.</li>
+            <li><b>Entering Ingredients:</b> Prefix format handled automatically via serial-numbered inputs.</li>
+            <li><b>Switching to Chat Mode:</b> Tap the toggle button to ask questions or request adjustments.</li>
+            <li><b>Pipeline Workflow:</b> Python processes your intent, sending clean instructions to the Node execution engine.</li>
         </ol>
 
         <hr style="border:0; border-top: 1px solid #eee; margin: 20px 0;">
 
         <h3>🤖 Need Quick Assistance? Ask Mini Kevaris</h3>
-        <p style="font-size: 13px; color: #666;">Mini Kevaris is a lightweight assistant running strictly on the Groq Engine for instant app help and quick tips.</p>
+        <p style="font-size: 13px; color: #666;">Mini Kevaris assists with application instructions and tips.</p>
         
         <div id="mini-kevaris-box">
             <div class="bubble bot" style="font-size: 13px;">Hi! I am Mini Kevaris. Ask me anything about using ChefSync or quick cooking tips!</div>
@@ -229,8 +220,8 @@
 </div>
 
 <script>
-const HARDWARE_CODE = "kevaris 57744"; 
-const BACKEND_URL = "https://chefsync-b7x0.onrender.com/chat";
+const SECURITY_CODE = "kevaris 57744"; 
+const BACKEND_URL = "https://chefsync-b7x0.onrender.com/chat"; // Points to server.py on Render
 
 let memory = JSON.parse(localStorage.getItem("chefsync_mem") || "[]");
 let isIngredientMode = true;
@@ -271,7 +262,6 @@ function showTyping() {
     return d;
 }
 
-// Automatically add next ingredient input line when current last line is edited
 function handleIngInput(inputElem) {
     const rows = ingBuilder.querySelectorAll(".ing-row");
     const lastRowInput = rows[rows.length - 1].querySelector(".ing-input");
@@ -289,7 +279,6 @@ function handleIngInput(inputElem) {
     }
 }
 
-// Toggle between Ingredients Mode and Normal Chat Mode
 function toggleIngMode() {
     isIngredientMode = !isIngredientMode;
     if (isIngredientMode) {
@@ -320,9 +309,9 @@ async function send() {
 
         if (list.length === 0) return;
 
-        finalPrompt = "<b>Available Ingredients:</b><br>" + list.map((item, idx) => `${idx + 1}. ${item}`).join("<br>");
+        // Matches exact prefix expected by server.py intent router logic (length 22)
+        finalPrompt = "available ingredients:" + list.map((item, idx) => `\n${idx + 1}. ${item}`).join("");
         
-        // Reset builder lines to 2 empty lines
         ingBuilder.innerHTML = `
             <div class="ing-row"><span class="ing-num">1.</span><input class="ing-input" placeholder="e.g. 2 Eggs" oninput="handleIngInput(this)"></div>
             <div class="ing-row"><span class="ing-num">2.</span><input class="ing-input" placeholder="e.g. 1 Onion" oninput="handleIngInput(this)"></div>
@@ -334,7 +323,7 @@ async function send() {
     }
 
     hideSplash();
-    bubble("user", finalPrompt);
+    bubble("user", finalPrompt.replace(/\n/g, "<br>"));
     memory.push({ role: "user", content: finalPrompt });
 
     const loader = showTyping();
@@ -344,7 +333,7 @@ async function send() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                code: HARDWARE_CODE,
+                code: SECURITY_CODE,
                 message: finalPrompt,
                 history: memory.slice(-6).map(m => ({role: m.role, content: m.content}))
             })
@@ -359,7 +348,7 @@ async function send() {
 
         if (!r.ok) {
             botBubble.style.color = "#ff3333";
-            botBubble.innerHTML = j.error || "System Error.";
+            botBubble.innerHTML = j.detail || j.error || "System Pipeline Error.";
             return;
         }
 
@@ -374,13 +363,12 @@ async function send() {
         const botBubble = document.createElement("div");
         botBubble.className = "bubble bot";
         botBubble.style.color = "#ff3333";
-        botBubble.innerHTML = "🔴 CONNECTION FAILURE: Unable to connect to ChefSync Council server.";
+        botBubble.innerHTML = "🔴 CONNECTION FAILURE: Unable to connect to Python Pipeline router.";
         chatBox.appendChild(botBubble);
     }
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Mini Kevaris Help Chat Functionality
 async function sendMiniHelp() {
     const miniInput = document.getElementById("mini-input");
     const miniBox = document.getElementById("mini-kevaris-box");
@@ -396,20 +384,19 @@ async function sendMiniHelp() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                code: HARDWARE_CODE,
+                code: SECURITY_CODE,
                 message: "MINI_KEVARIS_HELP: " + msg,
                 history: []
             })
         });
         const j = await r.json();
-        miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px;">${j.reply || j.error}</div>`;
+        miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px;">${j.reply || j.detail}</div>`;
     } catch {
         miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px; color:red;">Mini Kevaris offline.</div>`;
     }
     miniBox.scrollTop = miniBox.scrollHeight;
 }
 
-// Side Menu Listeners
 document.getElementById("menu-btn").onclick = () => sideMenu.style.transform = "translateX(0)";
 document.getElementById("closeMenuBtn").onclick = () => sideMenu.style.transform = "translateX(-100%)";
 document.getElementById("clearChatBtn").onclick = () => {
