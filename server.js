@@ -8,7 +8,6 @@ app.use(express.json());
 
 // =========================================================================
 // 🔑 CONFIGURATION & API KEY PLACEHOLDERS
-// Paste your API keys below OR set them as environment variables on Render
 // =========================================================================
 const SECURITY_CODE = "kevaris 57744";
 
@@ -46,7 +45,7 @@ async function searchWeb(query) {
 // =========================================================================
 // ⚡ HELPER 2: Groq Engine (Llama 3 / Fast Draft)
 // =========================================================================
-async function queryGroq(prompt, systemPrompt = "You are a concise, practical culinary AI.") {
+async function queryGroq(prompt, systemPrompt = "You are an assistant for ChefSync.") {
     if (!GROQ_API_KEY || GROQ_API_KEY.includes("YOUR_")) return null;
     try {
         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -73,7 +72,7 @@ async function queryGroq(prompt, systemPrompt = "You are a concise, practical cu
 }
 
 // =========================================================================
-// ♊ HELPER 3: Gemini Engine (Multimodal & Ingredient Optimization)
+// ♊ HELPER 3: Gemini Engine (Multimodal & Optimization)
 // =========================================================================
 async function queryGemini(prompt) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("YOUR_")) return null;
@@ -94,7 +93,7 @@ async function queryGemini(prompt) {
 }
 
 // =========================================================================
-// 🧠 HELPER 4: Qwen Engine (via OpenRouter Free Tier - Chief AI Director)
+// 🧠 HELPER 4: Qwen Engine (Chief AI Director)
 // =========================================================================
 async function queryQwen(systemPrompt, userPrompt) {
     if (!QWEN_API_KEY || QWEN_API_KEY.includes("YOUR_")) return null;
@@ -128,7 +127,7 @@ async function queryQwen(systemPrompt, userPrompt) {
 // 🚀 MAIN CHAT ENDPOINT: /chat
 // =========================================================================
 app.post("/chat", async (req, res) => {
-    const { code, message, history } = req.body;
+    const { code, message } = req.body;
 
     // 1. Hardware Code Authorization
     if (code !== SECURITY_CODE) {
@@ -139,7 +138,7 @@ app.post("/chat", async (req, res) => {
         return res.status(400).json({ error: "Message content required." });
     }
 
-    // 2. Mini Kevaris Fast Assistant Mode (For Help & Troubleshooting)
+    // 2. Mini Kevaris Fast Assistant Mode
     if (message.startsWith("MINI_KEVARIS_HELP:")) {
         const query = message.replace("MINI_KEVARIS_HELP:", "").trim();
         const miniReply = await queryGroq(
@@ -150,30 +149,27 @@ app.post("/chat", async (req, res) => {
     }
 
     try {
-        // 3. Step A: Search for pantry inspiration via Serper API
+        // 3. Step A: Web Context Search
         const searchContext = await searchWeb(message);
 
-        // 4. Step B: Query Groq & Gemini in parallel for initial draft ideas
-        const groqPrompt = `User is looking to cook with these constraints/ingredients:\n${message}\n\nSearch Context:\n${searchContext}\n\nSuggest a quick bachelor-friendly recipe idea with minimal steps.`;
-        const geminiPrompt = `Analyze these available ingredients/query:\n${message}\n\nProvide practical cooking tips, ingredient substitutions, and safety notes for a student/bachelor kitchen setup.`;
+        // 4. Step B: Parallel Initial Drafts
+        const groqPrompt = `User Query: "${message}"\nSearch Context:\n${searchContext}\n\nIf this is a recipe or ingredient query, draft a bachelor-friendly recipe idea. If it is a general question (e.g. who you are, greetings, questions about how ChefSync works), answer it directly.`;
+        const geminiPrompt = `User Query: "${message}"\n\nIf this is a recipe query, provide practical cooking tips or substitutions. If it is a general question, answer it directly.`;
 
         const [groqDraft, geminiDraft] = await Promise.all([
             queryGroq(groqPrompt),
             queryGemini(geminiPrompt)
         ]);
 
-        // 5. Step C: Council Consensus via Qwen
-        const qwenSystemPrompt = `You are ChefSync's Chief AI Culinary Director, and your name is "mise". 
-you are made by Riddhi Pandit.
-Your goal is to synthesize inputs from our search engine and secondary AI models into a clean, simple, bachelor-friendly recipe.
+        // 5. Step C: Council Synthesis via Qwen
+        const qwenSystemPrompt = `You are the official AI Engine of ChefSync, developed by Kevaris.
+Your system runs on a multi-AI council architecture powered by Groq (Llama 3.3), Gemini 2.0, Qwen 2.5, and Serper Web Search.
 
-Formatting Guidelines:
-- Keep ingredients list concise.
-- Use simple step-by-step cooking instructions.
-- Focus on minimal cookware, quick prep time, and practical taste.
-- Format with clear headings and bullet points using HTML line breaks where needed.`;
+Instructions:
+- IF THE USER ASKS A GENERAL QUESTION (e.g., "Who are you?", "What AIs are working?", greetings, or general help): Answer directly and helpfully in a conversational manner. Explain that you are ChefSync AI by Kevaris, powered by a multi-model council. Do NOT output a recipe unless requested.
+- IF THE USER PROVIDES INGREDIENTS OR ASKS FOR RECIPES: Synthesize the council drafts into a clean, bachelor-friendly recipe with bold headings and clear steps.`;
 
-        const qwenUserPrompt = `User Request: ${message}
+        const qwenUserPrompt = `User Request: "${message}"
 
 Model Draft 1 (Groq):
 ${groqDraft || "N/A"}
@@ -181,16 +177,16 @@ ${groqDraft || "N/A"}
 Model Draft 2 (Gemini):
 ${geminiDraft || "N/A"}
 
-Search Verification:
+Search Context:
 ${searchContext || "N/A"}
 
-Please synthesize this into the final ChefSync recipe response.`;
+Provide the final response according to your instructions.`;
 
         let finalReply = await queryQwen(qwenSystemPrompt, qwenUserPrompt);
 
-        // Fallback Strategy: If Qwen fails or key is missing, return Groq or Gemini's response
+        // Fallback Strategy
         if (!finalReply) {
-            finalReply = groqDraft || geminiDraft || "⚠️ AI Council synthesization failed. Please verify API keys in server configuration.";
+            finalReply = groqDraft || geminiDraft || "⚠️ AI Council synthesization failed. Please check backend API configuration.";
         }
 
         return res.json({ reply: finalReply });
@@ -201,7 +197,6 @@ Please synthesize this into the final ChefSync recipe response.`;
     }
 });
 
-// Health check endpoint
 app.get("/", (req, res) => {
     res.send("🍳 ChefSync Multi-AI Council Backend is running!");
 });
@@ -209,4 +204,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });
-        
