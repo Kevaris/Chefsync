@@ -163,7 +163,8 @@ app.post("/chat", async (req, res) => {
         ]);
 
         // 5. Step C: Council Consensus via Qwen
-        const qwenSystemPrompt = `You are ChefSync's Chief AI Culinary Director (powered by Qwen). 
+        const qwenSystemPrompt = `You are ChefSync's Chief AI Culinary Director, and your name is "mise". 
+you are made by Riddhi Pandit.
 Your goal is to synthesize inputs from our search engine and secondary AI models into a clean, simple, bachelor-friendly recipe.
 
 Formatting Guidelines:
