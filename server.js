@@ -19,7 +19,7 @@ const SERPER_API_KEY = process.env.SERPER_API_KEY || "YOUR_SERPER_API_KEY_HERE";
 const PORT = process.env.PORT || 3000;
 
 // =========================================================================
-// 🔍 HELPER 1: Serper Web Search API
+// 🔍 HELPER 1: Serper Web Search API (Fixed Query String)
 // =========================================================================
 async function searchWeb(query) {
     if (!SERPER_API_KEY || SERPER_API_KEY.includes("YOUR_")) return "";
@@ -30,7 +30,7 @@ async function searchWeb(query) {
                 "X-API-KEY": SERPER_API_KEY,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ q: query + " easy recipe bachelor" })
+            body: JSON.stringify({ q: query }) // Fixed: Removed forced string concatenation
         });
         const data = await response.json();
         if (data.organic && data.organic.length > 0) {
@@ -43,9 +43,9 @@ async function searchWeb(query) {
 }
 
 // =========================================================================
-// ⚡ HELPER 2: Groq Engine (Llama 3 / Fast Draft)
+// ⚡ HELPER 2: Groq Engine
 // =========================================================================
-async function queryGroq(prompt, systemPrompt = "You are an assistant for ChefSync.") {
+async function queryGroq(prompt, systemPrompt = "You are ChefSync AI by Kevaris.") {
     if (!GROQ_API_KEY || GROQ_API_KEY.includes("YOUR_")) return null;
     try {
         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -60,7 +60,7 @@ async function queryGroq(prompt, systemPrompt = "You are an assistant for ChefSy
                     { role: "system", content: systemPrompt },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.5
+                temperature: 0.3
             })
         });
         const data = await res.json();
@@ -72,7 +72,7 @@ async function queryGroq(prompt, systemPrompt = "You are an assistant for ChefSy
 }
 
 // =========================================================================
-// ♊ HELPER 3: Gemini Engine (Multimodal & Optimization)
+// ♊ HELPER 3: Gemini Engine
 // =========================================================================
 async function queryGemini(prompt) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("YOUR_")) return null;
@@ -93,7 +93,7 @@ async function queryGemini(prompt) {
 }
 
 // =========================================================================
-// 🧠 HELPER 4: Qwen Engine (Chief AI Director)
+// 🧠 HELPER 4: Qwen Engine
 // =========================================================================
 async function queryQwen(systemPrompt, userPrompt) {
     if (!QWEN_API_KEY || QWEN_API_KEY.includes("YOUR_")) return null;
@@ -112,7 +112,7 @@ async function queryQwen(systemPrompt, userPrompt) {
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
                 ],
-                temperature: 0.5
+                temperature: 0.3
             })
         });
         const data = await res.json();
@@ -124,12 +124,12 @@ async function queryQwen(systemPrompt, userPrompt) {
 }
 
 // =========================================================================
-// 🚀 MAIN CHAT ENDPOINT: /chat
+// 🚀 MAIN CHAT ENDPOINT
 // =========================================================================
 app.post("/chat", async (req, res) => {
-    const { code, message } = req.body;
+    const { code, message, history = [] } = req.body;
 
-    // 1. Hardware Code Authorization
+    // Authorization
     if (code !== SECURITY_CODE) {
         return res.status(403).json({ error: "🔒 Unauthorized: Invalid Security Code." });
     }
@@ -138,7 +138,7 @@ app.post("/chat", async (req, res) => {
         return res.status(400).json({ error: "Message content required." });
     }
 
-    // 2. Mini Kevaris Fast Assistant Mode
+    // Mini Kevaris Fast Assistant Mode
     if (message.startsWith("MINI_KEVARIS_HELP:")) {
         const query = message.replace("MINI_KEVARIS_HELP:", "").trim();
         const miniReply = await queryGroq(
@@ -149,50 +149,58 @@ app.post("/chat", async (req, res) => {
     }
 
     try {
-        // 3. Step A: Web Context Search
-        const searchContext = await searchWeb(message);
+        const lowerMsg = message.trim().toLowerCase();
 
-        // 4. Step B: Parallel Draft Inputs
-        const groqPrompt = `User Message: "${message}"\nSearch Context:\n${searchContext}\n\nTask: Analyze user intent. If the user asked a direct question, clarification, or follow-up, answer ONLY that question. DO NOT create an unrelated recipe unless they explicitly provided ingredients or requested a new recipe.`;
-        const geminiPrompt = `User Message: "${message}"\n\nTask: Provide direct culinary advice or answer to this query. If it's a follow-up question, answer ONLY that question without proposing a new recipe.`;
+        // ---------------------------------------------------------------------
+        // INTENT 1: Greetings & Meta Questions (Bypasses Search & Recipe Generator)
+        // ---------------------------------------------------------------------
+        const isGreeting = /^(hi|hello|hey|who are you|what are you|who built you|help)$/i.test(lowerMsg);
+        if (isGreeting) {
+            const metaReply = await queryGroq(
+                `The user said: "${message}". Respond politely as ChefSync AI by Kevaris. State that you are an AI culinary assistant powered by a multi-model council (Groq, Gemini, Qwen). Ask how you can help them with cooking or recipes today. DO NOT output any recipe.`,
+                "You are ChefSync AI by Kevaris."
+            );
+            return res.json({ reply: metaReply });
+        }
+
+        // Context string from recent chat history if provided by frontend
+        const formattedHistory = Array.isArray(history) && history.length > 0 
+            ? history.slice(-4).map(h => `${h.role}: ${h.content}`).join("\n")
+            : "No previous context.";
+
+        // ---------------------------------------------------------------------
+        // INTENT 2: Follow-up Questions about an existing recipe
+        // ---------------------------------------------------------------------
+        const isFollowUp = /time|how long|preheat|substitute|replace|instead|calories|pot|pan|step/i.test(lowerMsg);
+
+        if (isFollowUp && formattedHistory !== "No previous context.") {
+            const followUpPrompt = `Recent Chat Context:\n${formattedHistory}\n\nUser Question: "${message}"\n\nAnswer the user's question directly based on the context above. DO NOT generate a new recipe or suggest a different dish.`;
+            const answer = await queryGroq(followUpPrompt, "You are a concise culinary assistant answering a follow-up question.");
+            return res.json({ reply: answer });
+        }
+
+        // ---------------------------------------------------------------------
+        // INTENT 3: Recipe Request / Ingredient Synthesis
+        // ---------------------------------------------------------------------
+        const searchContext = await searchWeb(message + " recipe");
+
+        const groqPrompt = `User Input: "${message}"\nSearch Context:\n${searchContext}\nDraft a clean recipe addressing the user's input.`;
+        const geminiPrompt = `User Input: "${message}"\nProvide cooking tips or ingredient substitutions for this request.`;
 
         const [groqDraft, geminiDraft] = await Promise.all([
             queryGroq(groqPrompt),
             queryGemini(geminiPrompt)
         ]);
 
-        // 5. Step C: Council Synthesis via Qwen
-        const qwenSystemPrompt = `You are ChefSync AI by Kevaris.
+        const qwenSystemPrompt = `You are ChefSync AI by Kevaris. 
+Synthesize the provided drafts into a single clear, structured, bachelor-friendly recipe response with bold headings and clear steps.`;
 
-STRICT BEHAVIOR RULES:
-1. FOLLOW-UP QUESTIONS & DIRECT QUESTIONS:
-   - If the user asks a question (e.g. "how long to preheat?", "can I use butter instead?", "who are you?"), answer ONLY that question directly and concisely.
-   - NEVER tack on an unrequested recipe (like a Grilled Chicken Sandwich) to a direct question.
-
-2. INGREDIENT & RECIPE PROMPTS:
-   - ONLY format a full recipe (with ingredients and step-by-step instructions) if the user explicitly asks for a recipe, provides pantry ingredients, or asks "what can I cook?".
-
-3. NO UNRELATED DISHES:
-   - Do not combine a direct answer with a completely unrelated recipe.`;
-
-        const qwenUserPrompt = `User Message: "${message}"
-
-Model Insight 1 (Groq):
-${groqDraft || "N/A"}
-
-Model Insight 2 (Gemini):
-${geminiDraft || "N/A"}
-
-Search Context:
-${searchContext || "N/A"}
-
-Synthesize a single, direct, accurate response for the user based on the STRICT BEHAVIOR RULES.`;
+        const qwenUserPrompt = `User Input: "${message}"\nGroq Draft:\n${groqDraft}\nGemini Draft:\n${geminiDraft}\nSearch Context:\n${searchContext}`;
 
         let finalReply = await queryQwen(qwenSystemPrompt, qwenUserPrompt);
 
-        // Fallback Strategy
         if (!finalReply) {
-            finalReply = groqDraft || geminiDraft || "⚠️ AI Council synthesization failed. Please check backend API configuration.";
+            finalReply = groqDraft || geminiDraft || "⚠️ AI Council synthesis failed.";
         }
 
         return res.json({ reply: finalReply });
