@@ -60,7 +60,7 @@ async function queryGroq(prompt, systemPrompt = "You are an assistant for ChefSy
                     { role: "system", content: systemPrompt },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.6
+                temperature: 0.5
             })
         });
         const data = await res.json();
@@ -112,7 +112,7 @@ async function queryQwen(systemPrompt, userPrompt) {
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
                 ],
-                temperature: 0.6
+                temperature: 0.5
             })
         });
         const data = await res.json();
@@ -152,9 +152,9 @@ app.post("/chat", async (req, res) => {
         // 3. Step A: Web Context Search
         const searchContext = await searchWeb(message);
 
-        // 4. Step B: Parallel Initial Drafts
-        const groqPrompt = `User Query: "${message}"\nSearch Context:\n${searchContext}\n\nIf this is a recipe or ingredient query, draft a bachelor-friendly recipe idea. If it is a general question (e.g. who you are, greetings, questions about how ChefSync works), answer it directly.`;
-        const geminiPrompt = `User Query: "${message}"\n\nIf this is a recipe query, provide practical cooking tips or substitutions. If it is a general question, answer it directly.`;
+        // 4. Step B: Parallel Draft Inputs
+        const groqPrompt = `User Message: "${message}"\nSearch Context:\n${searchContext}\n\nTask: Analyze user intent. If the user asked a direct question, clarification, or follow-up, answer ONLY that question. DO NOT create an unrelated recipe unless they explicitly provided ingredients or requested a new recipe.`;
+        const geminiPrompt = `User Message: "${message}"\n\nTask: Provide direct culinary advice or answer to this query. If it's a follow-up question, answer ONLY that question without proposing a new recipe.`;
 
         const [groqDraft, geminiDraft] = await Promise.all([
             queryGroq(groqPrompt),
@@ -162,25 +162,31 @@ app.post("/chat", async (req, res) => {
         ]);
 
         // 5. Step C: Council Synthesis via Qwen
-        const qwenSystemPrompt = `You are the official AI Engine of ChefSync, developed by Kevaris.
-Your system runs on a multi-AI council architecture powered by Groq (Llama 3.3), Gemini 2.0, Qwen 2.5, and Serper Web Search.
+        const qwenSystemPrompt = `You are ChefSync AI by Kevaris.
 
-Instructions:
-- IF THE USER ASKS A GENERAL QUESTION (e.g., "Who are you?", "What AIs are working?", greetings, or general help): Answer directly and helpfully in a conversational manner. Explain that you are ChefSync AI by Kevaris, powered by a multi-model council. Do NOT output a recipe unless requested.
-- IF THE USER PROVIDES INGREDIENTS OR ASKS FOR RECIPES: Synthesize the council drafts into a clean, bachelor-friendly recipe with bold headings and clear steps.`;
+STRICT BEHAVIOR RULES:
+1. FOLLOW-UP QUESTIONS & DIRECT QUESTIONS:
+   - If the user asks a question (e.g. "how long to preheat?", "can I use butter instead?", "who are you?"), answer ONLY that question directly and concisely.
+   - NEVER tack on an unrequested recipe (like a Grilled Chicken Sandwich) to a direct question.
 
-        const qwenUserPrompt = `User Request: "${message}"
+2. INGREDIENT & RECIPE PROMPTS:
+   - ONLY format a full recipe (with ingredients and step-by-step instructions) if the user explicitly asks for a recipe, provides pantry ingredients, or asks "what can I cook?".
 
-Model Draft 1 (Groq):
+3. NO UNRELATED DISHES:
+   - Do not combine a direct answer with a completely unrelated recipe.`;
+
+        const qwenUserPrompt = `User Message: "${message}"
+
+Model Insight 1 (Groq):
 ${groqDraft || "N/A"}
 
-Model Draft 2 (Gemini):
+Model Insight 2 (Gemini):
 ${geminiDraft || "N/A"}
 
 Search Context:
 ${searchContext || "N/A"}
 
-Provide the final response according to your instructions.`;
+Synthesize a single, direct, accurate response for the user based on the STRICT BEHAVIOR RULES.`;
 
         let finalReply = await queryQwen(qwenSystemPrompt, qwenUserPrompt);
 
