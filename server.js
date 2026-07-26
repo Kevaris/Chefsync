@@ -11,6 +11,7 @@ const GROQ_API_KEY   = process.env.GROQ_API_KEY   || "YOUR_GROQ_API_KEY_HERE";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 const QWEN_API_KEY   = process.env.QWEN_API_KEY   || process.env.OPENROUTER_API_KEY || "YOUR_QWEN_OR_OPENROUTER_API_KEY_HERE";
 const SERPER_API_KEY = process.env.SERPER_API_KEY || "YOUR_SERPER_API_KEY_HERE";
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "YOUR_YOUTUBE_API_KEY_HERE";
 
 const PORT = 3000;
 
@@ -31,6 +32,31 @@ async function searchWeb(query) {
         console.error("Serper API Error:", err.message);
     }
     return "";
+}
+
+// YouTube Data API Search for Recipe Video & Thumbnail Image
+async function fetchYouTubeGuide(dishName) {
+    if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("YOUR_")) return null;
+    try {
+        const query = encodeURIComponent(`${dishName} recipe guide`);
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=1&key=${YOUTUBE_API_KEY}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        const item = data.items?.[0];
+
+        if (!item) return null;
+
+        return {
+            title: item.snippet.title,
+            thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url,
+            videoId: item.id.videoId,
+            channelTitle: item.snippet.channelTitle
+        };
+    } catch (err) {
+        console.error("YouTube API Error:", err.message);
+        return null;
+    }
 }
 
 async function callGroq(messages, temperature = 0.4) {
@@ -100,7 +126,7 @@ app.post("/generate", async (req, res) => {
             return res.json({ reply: reply || "Mini Kevaris offline." });
         }
 
-        // Mode 2: Generate New Recipe (Multi-AI Council + Serper)
+        // Mode 2: Generate New Recipe (Multi-AI Council + Serper + YouTube Media)
         if (mode === "generate_recipe") {
             console.log("[server.js] Executing Multi-AI Recipe Council");
             const searchContext = await searchWeb(`${clean_ingredients} quick recipe`);
@@ -122,10 +148,21 @@ app.post("/generate", async (req, res) => {
             ]);
 
             if (!finalReply) finalReply = groqDraft || geminiDraft || "AI synthesis failed.";
+
+            // Extract Dish Name for YouTube Media Search
+            const firstLine = finalReply.split("\n")[0].replace(/[#*]/g, "").trim();
+            const searchDishName = firstLine.length > 3 ? firstLine : clean_ingredients;
+
+            const ytData = await fetchYouTubeGuide(searchDishName);
+            if (ytData) {
+                const mediaMarkdown = `![${searchDishName}](${ytData.thumbnail})\n*Video Tutorial: [${ytData.title} (${ytData.channelTitle})](https://www.youtube.com/watch?v=${ytData.videoId})*\n\n---`;
+                finalReply = mediaMarkdown + "\n\n" + finalReply;
+            }
+
             return res.json({ reply: finalReply });
         }
 
-        // Mode 3: Follow-Up Questions (Using History, No Web Search, No New Recipes)
+        // Mode 3: Follow-Up Questions
         if (mode === "followup_chat") {
             console.log("[server.js] Executing Memory Follow-Up Chat");
             const systemPrompt = `You are the AI chatbot of ChefSync, you come under Kevaris group of companies made by Riddhi pandit. Answer the user's follow-up question DIRECTLY using the provided conversation history.
