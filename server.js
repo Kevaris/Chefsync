@@ -57,7 +57,7 @@ async function fetchFoodImage(dishName) {
 async function fetchYouTubeGuide(dishName) {
     if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("YOUR_")) return null;
     try {
-        const query = encodeURIComponent(`${dishName} recipe guide`);
+        const query = encodeURIComponent(searchDishName.toLowerCase().includes('recipe') ? searchDishName : searchDishName + ' recipe');
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=1&key=${YOUTUBE_API_KEY}`;
         
         const response = await fetch(url);
