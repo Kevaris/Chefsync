@@ -71,6 +71,23 @@
         .user { align-self: flex-end; background: var(--user); color: #000; border-bottom-right-radius: 2px; }
         .bot { align-self: flex-start; background: var(--bot); color: #000; border-bottom-left-radius: 2px; }
 
+        /* Media and link styling inside bubbles */
+        .bubble img {
+            width: 100%;
+            max-height: 240px;
+            object-fit: cover;
+            border-radius: 14px;
+            margin: 8px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            display: block;
+        }
+
+        .bubble a {
+            color: var(--accent);
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
         /* Horizontal dividing line style inside bubbles */
         .bubble hr {
             border: 0;
@@ -183,7 +200,7 @@
             <h4 style="margin-top: 0; color: #00735a; font-size: 16px;">Core Architecture</h4>
             <ul style="padding-left: 18px; font-size: 13px; color: #555;">
                 <li style="margin-bottom: 6px;"><b>Backend I (server.py):</b> Intent routing & pipeline orchestration.</li>
-                <li style="margin-bottom: 6px;"><b>Backend II (server.js):</b> Multi-AI Council (Groq, Gemini, Qwen) & Serper search.</li>
+                <li style="margin-bottom: 6px;"><b>Backend II (server.js):</b> Multi-AI Council (Groq, Gemini, Qwen), Serper search & YouTube Media integration.</li>
                 <li style="margin-bottom: 6px;"><b>Bachelor Optimization:</b> Low time, minimal utensils, simple steps.</li>
             </ul>
         </div>
@@ -252,14 +269,23 @@ function formatMarkdown(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // Replace "---" with a horizontal dividing line (<hr>)
+    // 1. Convert Markdown Images: ![alt](url) -> HTML <img>
+    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
+        return `<img src="${url}" alt="${alt}" loading="lazy">`;
+    });
+
+    // 2. Convert Markdown Links: [text](url) -> Clickable Anchor Tag
+    safeText = safeText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // 3. Replace "---" with horizontal dividing line (<hr>)
     safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
 
-    // Format **text** to bold
+    // 4. Format **text** to bold
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="formatted-highlight">$1</strong>');
     
-    // Convert newlines to line breaks
+    // 5. Convert newlines to line breaks
     safeText = safeText.replace(/\n/g, "<br>");
+    
     return safeText;
 }
 
