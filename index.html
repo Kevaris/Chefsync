@@ -67,17 +67,21 @@
             -webkit-overflow-scrolling: touch;
         }
         
-        .bubble { max-width: 85%; padding: 12px; border-radius: 16px; word-wrap: break-word; line-height: 1.4; font-size: 15px; }
+        .bubble { max-width: 85%; padding: 12px; border-radius: 16px; word-wrap: break-word; line-height: 1.5; font-size: 15px; }
         .user { align-self: flex-end; background: var(--user); color: #000; border-bottom-right-radius: 2px; }
         .bot { align-self: flex-start; background: var(--bot); color: #000; border-bottom-left-radius: 2px; }
 
-        /* Highlight styling for text wrapped in **asterisks** */
-        .formatted-highlight {
+        /* Horizontal dividing line style inside bubbles */
+        .bubble hr {
+            border: 0;
+            border-top: 1px solid #e0e0e0;
+            margin: 12px 0;
+            width: 100%;
+        }
+
+        /* Clean bolding for **text** */
+        strong, .formatted-highlight {
             font-weight: bold;
-            color: #005643;
-            background-color: #e8f5e9;
-            padding: 2px 6px;
-            border-radius: 4px;
         }
 
         #input-area { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; }
@@ -230,7 +234,7 @@
 
 <script>
 const SECURITY_CODE = "kevaris 57744"; 
-const BACKEND_URL = "https://chefsync-b7x0.onrender.com/chat"; // Points to server.py on Render
+const BACKEND_URL = "https://chefsync-b7x0.onrender.com/chat";
 
 let memory = JSON.parse(localStorage.getItem("chefsync_mem") || "[]");
 let isIngredientMode = true;
@@ -241,7 +245,6 @@ const sideMenu = document.getElementById("side-menu");
 const ingBuilder = document.getElementById("ingredients-builder");
 const toggleBtn = document.getElementById("toggle-mode-btn");
 
-// Helper function to convert **text** into styled highlights and preserve newlines
 function formatMarkdown(text) {
     if (!text) return "";
     let safeText = text
@@ -249,12 +252,14 @@ function formatMarkdown(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // Replaces **text** with <strong class="formatted-highlight">text</strong>
+    // Replace "---" with a horizontal dividing line (<hr>)
+    safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
+
+    // Format **text** to bold
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="formatted-highlight">$1</strong>');
     
-    // Convert newlines to breaks
+    // Convert newlines to line breaks
     safeText = safeText.replace(/\n/g, "<br>");
-    
     return safeText;
 }
 
@@ -266,20 +271,14 @@ function hideSplash() {
 window.onload = () => {
     if (memory.length > 0) {
         hideSplash();
-        memory.forEach(m => {
-            if (m.role === "user") {
-                bubble("user", m.content.replace(/\n/g, "<br>"));
-            } else {
-                bubble("bot", formatMarkdown(m.content));
-            }
-        });
+        memory.forEach(m => bubble(m.role === "user" ? "user" : "bot", m.content));
     }
 };
 
 function bubble(role, text) {
     const d = document.createElement("div");
     d.className = "bubble " + role;
-    d.innerHTML = text;
+    d.innerHTML = formatMarkdown(text);
     chatBox.appendChild(d);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -329,7 +328,7 @@ function toggleIngMode() {
 }
 
 async function send() {
-    let finalPrompt = "";
+    let rawPrompt = "";
 
     if (isIngredientMode) {
         const inputs = ingBuilder.querySelectorAll(".ing-input");
@@ -341,22 +340,24 @@ async function send() {
 
         if (list.length === 0) return;
 
-        // Matches exact prefix expected by server.py intent router logic
-        finalPrompt = "available ingredients:" + list.map((item, idx) => `\n${idx + 1}. ${item}`).join("");
+        rawPrompt = "available ingredients:" + list.map((item, idx) => `\n${idx + 1}. ${item}`).join("");
         
         ingBuilder.innerHTML = `
             <div class="ing-row"><span class="ing-num">1.</span><input class="ing-input" placeholder="e.g. 2 Eggs" oninput="handleIngInput(this)"></div>
             <div class="ing-row"><span class="ing-num">2.</span><input class="ing-input" placeholder="e.g. 1 Onion" oninput="handleIngInput(this)"></div>
         `;
     } else {
-        finalPrompt = userInput.value.trim();
-        if (!finalPrompt) return;
+        rawPrompt = userInput.value.trim();
+        if (!rawPrompt) return;
         userInput.value = "";
     }
 
     hideSplash();
-    bubble("user", finalPrompt.replace(/\n/g, "<br>"));
-    memory.push({ role: "user", content: finalPrompt });
+    bubble("user", rawPrompt);
+    memory.push({ role: "user", content: rawPrompt });
+
+    // Append instruction forcing the model to separate sections with ---
+    const payloadPrompt = rawPrompt + "\n\n[System Note: Please structure your response cleanly and separate major sections using '---' on its own line.]";
 
     const loader = showTyping();
 
@@ -366,7 +367,7 @@ async function send() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 code: SECURITY_CODE,
-                message: finalPrompt,
+                message: payloadPrompt,
                 history: memory.slice(-6).map(m => ({role: m.role, content: m.content}))
             })
         });
@@ -380,7 +381,7 @@ async function send() {
 
         if (!r.ok) {
             botBubble.style.color = "#ff3333";
-            botBubble.innerHTML = j.detail || j.error || "System Pipeline Error.";
+            botBubble.innerHTML = formatMarkdown(j.detail || j.error || "System Pipeline Error.");
             return;
         }
 
@@ -408,7 +409,7 @@ async function sendMiniHelp() {
     if (!msg) return;
 
     miniInput.value = "";
-    miniBox.innerHTML += `<div class="bubble user" style="font-size:12px; align-self:flex-end;">${msg}</div>`;
+    miniBox.innerHTML += `<div class="bubble user" style="font-size:12px; align-self:flex-end;">${formatMarkdown(msg)}</div>`;
     miniBox.scrollTop = miniBox.scrollHeight;
 
     try {
@@ -422,8 +423,7 @@ async function sendMiniHelp() {
             })
         });
         const j = await r.json();
-        const replyText = j.reply || j.detail || "";
-        miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px;">${formatMarkdown(replyText)}</div>`;
+        miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px;">${formatMarkdown(j.reply || j.detail)}</div>`;
     } catch {
         miniBox.innerHTML += `<div class="bubble bot" style="font-size:12px; color:red;">Mini Kevaris offline.</div>`;
     }
