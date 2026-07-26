@@ -15,7 +15,7 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "YOUR_YOUTUBE_API_KEY_HER
 
 const PORT = 3000;
 
-// Helper APIs
+// Serper Web Search
 async function searchWeb(query) {
     if (!SERPER_API_KEY || SERPER_API_KEY.includes("YOUR_")) return "";
     try {
@@ -34,7 +34,26 @@ async function searchWeb(query) {
     return "";
 }
 
-// YouTube Data API Search for Recipe Video & Thumbnail Image
+// Serper Image Search Fallback
+async function fetchFoodImage(dishName) {
+    if (!SERPER_API_KEY || SERPER_API_KEY.includes("YOUR_")) return null;
+    try {
+        const response = await fetch("https://google.serper.dev/images", {
+            method: "POST",
+            headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({ q: `${dishName} food recipe photo` })
+        });
+        const data = await response.json();
+        if (data.images && data.images.length > 0) {
+            return data.images[0].imageUrl;
+        }
+    } catch (err) {
+        console.error("Serper Image Error:", err.message);
+    }
+    return null;
+}
+
+// YouTube Data API Search
 async function fetchYouTubeGuide(dishName) {
     if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("YOUR_")) return null;
     try {
@@ -112,7 +131,7 @@ async function callQwen(messages, temperature = 0.4) {
     }
 }
 
-// Route called strictly by server.py
+// Route called by server.py
 app.post("/generate", async (req, res) => {
     const { mode, clean_ingredients, raw_prompt, user_query, history = [], query } = req.body;
 
@@ -149,15 +168,28 @@ app.post("/generate", async (req, res) => {
 
             if (!finalReply) finalReply = groqDraft || geminiDraft || "AI synthesis failed.";
 
-            // Extract Dish Name for YouTube Media Search
+            // Extract Dish Name for YouTube & Photo Search
             const firstLine = finalReply.split("\n")[0].replace(/[#*]/g, "").trim();
             const searchDishName = firstLine.length > 3 ? firstLine : clean_ingredients;
 
-            const ytData = await fetchYouTubeGuide(searchDishName);
+            // Fetch YouTube Data & Photo Image concurrently
+            const [ytData, photoUrl] = await Promise.all([
+                fetchYouTubeGuide(searchDishName),
+                fetchFoodImage(searchDishName)
+            ]);
+
+            // Determine best photo and video source
+            const finalImageUrl = (ytData && ytData.thumbnail) || photoUrl || `https://source.unsplash.com/600x400/?${encodeURIComponent(searchDishName)},food`;
+
+            let mediaMarkdown = `![${searchDishName}](${finalImageUrl})\n`;
+
             if (ytData) {
-                const mediaMarkdown = `![${searchDishName}](${ytData.thumbnail})\n*Video Tutorial: [${ytData.title} (${ytData.channelTitle})](https://www.youtube.com/watch?v=${ytData.videoId})*\n\n---`;
-                finalReply = mediaMarkdown + "\n\n" + finalReply;
+                mediaMarkdown += `*🎥 Watch Video Tutorial: [${ytData.title} (${ytData.channelTitle})](https://www.youtube.com/watch?v=${ytData.videoId})*\n\n---`;
+            } else {
+                mediaMarkdown += `*🎥 Search Tutorials: [Watch ${searchDishName} Recipes on YouTube](https://www.youtube.com/results?search_query=${encodeURIComponent(searchDishName + ' recipe')})*\n\n---`;
             }
+
+            finalReply = mediaMarkdown + "\n\n" + finalReply;
 
             return res.json({ reply: finalReply });
         }
@@ -165,16 +197,7 @@ app.post("/generate", async (req, res) => {
         // Mode 3: Follow-Up Questions
         if (mode === "followup_chat") {
             console.log("[server.js] Executing Memory Follow-Up Chat");
-            const systemPrompt = `You are the AI chatbot of ChefSync, you come under Kevaris group of companies made by Riddhi pandit. Answer the user's follow-up question DIRECTLY using the provided conversation history.
-            
-RULES:
-CULINARY REALISM & FLAVOR RULES:
-1. FLAVOR PAIRING CHECK: Evaluate if the provided ingredients naturally pair together in real-world cuisine.
-2. INCOMPATIBLE INGREDIENTS: If ingredients clash badly (e.g., sweet cake + onions, fish + chocolate):
-   - DO NOT force them into a single unpalatable recipe.
-   - Gently inform the user that the combination isn't culinary-compatible.
-   - Pick the primary/strongest ingredient and suggest a realistic recipe for it, mentioning additional common kitchen staples they might need.
-3. DISH AUTHENTICITY: Only generate recipes that are culinarily sound and palatable. Never invent fake or unappetizing dishes just to use every word provided.`;
+            const systemPrompt = `You are the AI chatbot of ChefSync by Kevaris, made by Riddhi Pandit. Answer follow-up questions directly.`;
 
             const messages = [{ role: "system", content: systemPrompt }];
             for (const msg of history) {
@@ -196,4 +219,4 @@ CULINARY REALISM & FLAVOR RULES:
     }
 });
 
-app.listen(PORT, () => console.log(`server.js (Backend II Engine) running on port ${PORT}`));
+app.listen(PORT, () => console.log(`server.js running on port ${PORT}`));
