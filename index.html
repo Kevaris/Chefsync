@@ -71,7 +71,7 @@
         .user { align-self: flex-end; background: var(--user); color: #000; border-bottom-right-radius: 2px; }
         .bot { align-self: flex-start; background: var(--bot); color: #000; border-bottom-left-radius: 2px; }
 
-        /* Media and link styling inside bubbles */
+        /* Media and typography styling inside bubbles */
         .bubble img {
             width: 100%;
             max-height: 240px;
@@ -88,7 +88,6 @@
             text-decoration: underline;
         }
 
-        /* Horizontal dividing line style inside bubbles */
         .bubble hr {
             border: 0;
             border-top: 1px solid #e0e0e0;
@@ -96,10 +95,17 @@
             width: 100%;
         }
 
-        /* Clean bolding for **text** */
-        strong, .formatted-highlight {
+        .bubble h2, .bubble h3, .bubble h4 {
+            color: var(--accent);
+            margin: 12px 0 4px 0;
             font-weight: bold;
         }
+
+        .bubble h2 { font-size: 18px; }
+        .bubble h3 { font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+        .bubble h4 { font-size: 14px; }
+
+        strong, .formatted-highlight { font-weight: bold; }
 
         #input-area { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; flex-shrink: 0; }
         
@@ -196,46 +202,20 @@
         <p style="color: #444; line-height: 1.6; font-size: 15px; text-align: justify;">
             <b>ChefSync</b> is a web-based multi-AI culinary council designed specifically for bachelors, students, and home cooks. Using a Python router pipeline paired with a multi-model Node.js engine, it crafts optimal recipes using your available pantry components.
         </p>
-        <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 20px 0; border-left: 5px solid #00735a;">
-            <h4 style="margin-top: 0; color: #00735a; font-size: 16px;">Core Architecture</h4>
-            <ul style="padding-left: 18px; font-size: 13px; color: #555;">
-                <li style="margin-bottom: 6px;"><b>Backend I (server.py):</b> Intent routing & pipeline orchestration.</li>
-                <li style="margin-bottom: 6px;"><b>Backend II (server.js):</b> Multi-AI Council (Groq, Gemini, Qwen), Serper search & YouTube Media integration.</li>
-                <li style="margin-bottom: 6px;"><b>Bachelor Optimization:</b> Low time, minimal utensils, simple steps.</li>
-            </ul>
-        </div>
-        <div>
-            <p style="margin-top: 15px; font-family: monospace; font-size: 12px; letter-spacing: 0.5px;">
-                <span style="color: #00735a;"><b>C</b></span><span style="opacity: 0.6;">ulinary</span>
-                <span style="color: #00735a;"><b>H</b></span><span style="opacity: 0.6;">euristic</span>
-                <span style="color: #00735a;"><b>E</b></span><span style="opacity: 0.6;">ngine</span>
-                <span style="color: #00735a;"><b>F</b></span><span style="opacity: 0.6;">or</span>
-                <span style="color: #00735a;"><b>S</b></span><span style="opacity: 0.6;">mart</span>
-                <span style="color: #00735a;"><b>Y</b></span><span style="opacity: 0.6;">ield</span>
-                <span style="color: #00735a;"><b>N</b></span><span style="opacity: 0.6;">utrition &</span>
-                <span style="color: #00735a;"><b>C</b></span><span style="opacity: 0.6;">ooking</span>
-            </p>
-            <br> — Developed & Engineered by <b>Riddhi Pandit</b>
-        </div>
         <button onclick="closePanel()" style="margin-top: 20px; background: #00735a; color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer;">Close</button>
     </div>
 </div>
 
-<!-- HELP & MINI KEVARIS PANEL -->
+<!-- HELP PANEL -->
 <div id="help" class="panel">
     <div style="max-width: 600px; margin: 0 auto;">
         <h2>❓ How to Use ChefSync</h2>
         <ol style="font-size: 14px; line-height: 1.6; color: #444; padding-left: 20px;">
             <li><b>Entering Ingredients:</b> Prefix format handled automatically via serial-numbered inputs.</li>
             <li><b>Switching to Chat Mode:</b> Tap the toggle button to ask questions or request adjustments.</li>
-            <li><b>Pipeline Workflow:</b> Python processes your intent, sending clean instructions to the Node execution engine.</li>
         </ol>
-
         <hr style="border:0; border-top: 1px solid #eee; margin: 20px 0;">
-
         <h3>🤖 Need Quick Assistance? Ask Mini Kevaris</h3>
-        <p style="font-size: 13px; color: #666;">Mini Kevaris assists with application instructions and tips.</p>
-        
         <div id="mini-kevaris-box">
             <div class="bubble bot" style="font-size: 13px;">Hi! I am Mini Kevaris. Ask me anything about using ChefSync or quick cooking tips!</div>
         </div>
@@ -243,7 +223,6 @@
             <input id="mini-input" placeholder="Ask Mini Kevaris..." onkeypress="if(event.key==='Enter') sendMiniHelp()">
             <button onclick="sendMiniHelp()">Send</button>
         </div>
-
         <br>
         <button onclick="closePanel()" style="background: #00735a; color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer;">Return to ChefSync</button>
     </div>
@@ -270,22 +249,28 @@ function formatMarkdown(text) {
         .replace(/>/g, "&gt;");
 
     // 1. Convert Markdown Images: ![alt](url) -> HTML <img>
-    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
-        return `<img src="${url}" alt="${alt}" loading="lazy">`;
-    });
+    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy">');
 
     // 2. Convert Markdown Links: [text](url) -> Clickable Anchor Tag
     safeText = safeText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 3. Replace "---" with horizontal dividing line (<hr>)
+    // 3. Convert Markdown Headings (#, ##, ###)
+    safeText = safeText.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+    safeText = safeText.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+    safeText = safeText.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+
+    // 4. Horizontal Dividing Line "---"
     safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
 
-    // 4. Format **text** to bold
-    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="formatted-highlight">$1</strong>');
-    
-    // 5. Convert newlines to line breaks
+    // 5. Bold & Italic text
+    safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    safeText = safeText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // 6. Convert newlines to line breaks (clean up break tags around headings/hrs)
     safeText = safeText.replace(/\n/g, "<br>");
-    
+    safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
+    safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
+
     return safeText;
 }
 
@@ -382,9 +367,7 @@ async function send() {
     bubble("user", rawPrompt);
     memory.push({ role: "user", content: rawPrompt });
 
-    // Append instruction forcing the model to separate sections with ---
-    const payloadPrompt = rawPrompt + "\n\n[System Note: Please structure your response cleanly and separate major sections using '---' on its own line.]";
-
+    const payloadPrompt = rawPrompt;
     const loader = showTyping();
 
     try {
