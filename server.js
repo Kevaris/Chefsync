@@ -158,7 +158,15 @@ app.post("/generate", async (req, res) => {
                 callGemini(geminiPrompt)
             ]);
 
-            const qwenSystemPrompt = `You are ChefSync AI by Kevaris. Synthesize the provided drafts into a single, clean recipe formatted with Title, Ingredients, Instructions, and Cook Time.`;
+            const qwenSystemPrompt = `You are ChefSync AI coming under project Kevaris made by Riddhi Pandit. Synthesize the provided drafts into a single, clean recipe formatted with Title, Ingredients, Instructions, and Cook Time. 
+            At the very end of your response, strictly after the Note section, include this exact section format:
+
+---
+You can also make these recipes:
+↳ Alternative Dish 1
+↳ Alternative Dish 2
+↳ Alternative Dish 3
+↳ Alternative Dish 4`;
             const qwenUserPrompt = `Raw Prompt:\n${raw_prompt}\n\nGroq Draft:\n${groqDraft}\n\nGemini Draft:\n${geminiDraft}\n\nSearch Context:\n${searchContext}`;
 
             let finalReply = await callQwen([
