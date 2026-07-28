@@ -292,31 +292,31 @@ function formatMarkdown(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // 1. Convert Markdown Images: ![alt](url) -> HTML <img>
-    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy">');
+    // 1. Convert Markdown Images with auto-hide fallback if broken
+    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy" onerror="this.style.display=\'none\'">');
 
-    // 2. Convert Markdown Links: [text](url) -> Clickable Anchor Tag
+    // 2. Convert Markdown Links
     safeText = safeText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 3. Convert Markdown Headings (#, ##, ###)
+    // 3. Convert Markdown Headings
     safeText = safeText.replace(/^### (.*$)/gim, '<h4>$1</h4>');
     safeText = safeText.replace(/^## (.*$)/gim, '<h3>$1</h3>');
     safeText = safeText.replace(/^# (.*$)/gim, '<h2>$1</h2>');
 
-    // 4. Horizontal Dividing Line "---"
+    // 4. Horizontal Dividing Line
     safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
 
     // 5. Bold & Italic text
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     safeText = safeText.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-    // 6. Convert newlines to line breaks (clean up break tags around headings/hrs)
+    // 6. Line breaks formatting
     safeText = safeText.replace(/\n/g, "<br>");
     safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*$/g, "");
 
-    // 7. Convert ↳ lines into clean clickable options (Dark text, no green box)
+    // 7. Convert ↳ lines into clean clickable options
     safeText = safeText.replace(/↳\s*(.+?)(?=<br>|$)/gi, function(match, dishName) {
         const cleanName = dishName.replace(/<[^>]*>?/gm, '').trim().replace(/['"]/g, '');
         const escapedName = cleanName.replace(/'/g, "\\'");
@@ -392,15 +392,13 @@ function toggleIngMode() {
 }
 
 function sendSuggestedRecipe(dishName) {
-    // Isolate ONLY the clean dish name without any HTML tags or arrow symbols
     const cleanName = dishName.replace(/<[^>]*>?/gm, '').replace(/↳/g, '').trim();
     
     if (isIngredientMode) {
         toggleIngMode();
     }
     
-    // Set user input to the clean single prompt and trigger send
-    userInput.value = `how to create a simple ${cleanName}?`;
+    userInput.value = `How do I make ${cleanName}? Please give me the full recipe and step-by-step instructions.`;
     send();
 }
 
@@ -417,7 +415,8 @@ async function send() {
 
         if (list.length === 0) return;
 
-        rawPrompt = "available ingredients:" + list.map((item, idx) => `\n${idx + 1}. ${item}`).join("");
+        // Formatted clearly so backend AI models understand the input request immediately
+        rawPrompt = "I have the following available ingredients:\n" + list.map((item, idx) => `${idx + 1}. ${item}`).join("\n") + "\n\nWhat recipes can I make with these ingredients?";
         
         ingBuilder.innerHTML = `
             <div class="ing-row"><span class="ing-num">1.</span><input class="ing-input" placeholder="e.g. 2 Eggs" oninput="handleIngInput(this)"></div>
@@ -528,4 +527,3 @@ userInput.onkeypress = e => e.key === "Enter" && send();
 </footer>
 </body>
 </html>
-   
