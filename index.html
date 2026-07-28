@@ -97,8 +97,9 @@
             width: 100%;
         }
 
+        /* Solid dark black headings inside response bubbles */
         .bubble h2, .bubble h3, .bubble h4 {
-            color: var(--accent);
+            color: #111827 !important;
             margin: 12px 0 4px 0;
             font-weight: bold;
         }
@@ -106,6 +107,22 @@
         .bubble h2 { font-size: 18px; }
         .bubble h3 { font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
         .bubble h4 { font-size: 14px; }
+
+        /* Clean option suggestions: dark black text, no green background box */
+        .suggestion-option {
+            cursor: pointer;
+            color: #111827 !important;
+            font-weight: 600;
+            padding: 4px 0;
+            margin: 4px 0;
+            display: block;
+            background: transparent !important;
+            border: none !important;
+            text-align: left;
+        }
+        .suggestion-option:hover {
+            text-decoration: underline;
+        }
 
         strong, .formatted-highlight { font-weight: bold; }
 
@@ -152,7 +169,7 @@
         @keyframes blink { 50% { opacity: .3; } }
 
         .panel { display: none; position: fixed; inset: 0; background: #fff; z-index: 120; padding: 20px; overflow: auto; box-sizing: border-box; }
-        .panel h2 { margin-top: 0; color: var(--accent); }
+        .panel h2 { margin-top: 0; color: #111827; }
         
         #splash-container { 
             display: flex; 
@@ -223,7 +240,7 @@
 <div id="about" class="panel">
     <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; text-align: center;">
         <img src="https://www.image2url.com/r2/default/images/1783649854423-f3662bab-45c4-4233-b2cc-aec5bc84b8fa.jpg" alt="ChefSync" style="width:90px; border-radius: 18px;">
-        <h2 style="color: #00735a; font-size: 28px; margin-bottom: 5px;">ChefSync Engine</h2>
+        <h2 style="color: #111827; font-size: 28px; margin-bottom: 5px;">ChefSync Engine</h2>
         <p style="color: #777; font-size: 14px; margin-bottom: 15px;"><b>Version:</b> ChefSync 2.0 (Dual-Backend Pipeline)</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
         <p style="color: #444; line-height: 1.6; font-size: 15px; text-align: justify;">
@@ -299,10 +316,11 @@ function formatMarkdown(text) {
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*$/g, "");
 
-    // 7. Convert ↳ lines into clickable buttons
-    safeText = safeText.replace(/↳\s*(.+)/g, function(match, dishName) {
-        const cleanName = dishName.trim().replace(/['"]/g, '');
-        return `<div onclick="sendSuggestedRecipe('${cleanName}')" style="cursor: pointer; color: #0d9488; font-weight: 600; padding: 6px 10px; margin: 4px 2px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: inline-block;">↳ ${cleanName}</div>`;
+    // 7. Convert ↳ lines into clean clickable options (Dark text, no green box)
+    safeText = safeText.replace(/↳\s*(.+?)(?=<br>|$)/gi, function(match, dishName) {
+        const cleanName = dishName.replace(/<[^>]*>?/gm, '').trim().replace(/['"]/g, '');
+        const escapedName = cleanName.replace(/'/g, "\\'");
+        return `<div onclick="sendSuggestedRecipe('${escapedName}')" class="suggestion-option">↳ ${cleanName}</div>`;
     });
 
     return safeText;
@@ -374,10 +392,15 @@ function toggleIngMode() {
 }
 
 function sendSuggestedRecipe(dishName) {
+    // Isolate ONLY the clean dish name without any HTML tags or arrow symbols
+    const cleanName = dishName.replace(/<[^>]*>?/gm, '').replace(/↳/g, '').trim();
+    
     if (isIngredientMode) {
         toggleIngMode();
     }
-    userInput.value = "how to create a " + dishName;
+    
+    // Set user input to the clean single prompt and trigger send
+    userInput.value = `how to create a simple ${cleanName}?`;
     send();
 }
 
@@ -505,3 +528,4 @@ userInput.onkeypress = e => e.key === "Enter" && send();
 </footer>
 </body>
 </html>
+   
