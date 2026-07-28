@@ -158,15 +158,19 @@ app.post("/generate", async (req, res) => {
                 callGemini(geminiPrompt)
             ]);
 
-            const qwenSystemPrompt = `You are ChefSync AI coming under project Kevaris made by Riddhi Pandit. Synthesize the provided drafts into a single, clean recipe formatted with Title, Ingredients, Instructions, and Cook Time. 
-            At the very end of your response, strictly after the Note section, include this exact section format:
+            const qwenSystemPrompt = `You are "Mice", the AI of Chefsync website, under kevaris group of services, whose owner and creator is Riddhi pandit. Generate a clear recipe using the provided ingredients. Include Title, Ingredients, Instructions, and Tips.
+
+MANDATORY ENDING RULE:
+At the very end of your response, after the tips/notes, you MUST list 3 to 4 alternative dish suggestions that can be made using similar ingredients. 
+
+You MUST use the exact symbol "↳" at the start of each suggested dish line, like this:
 
 ---
 You can also make these recipes:
-↳ Alternative Dish 1
-↳ Alternative Dish 2
-↳ Alternative Dish 3
-↳ Alternative Dish 4`;
+↳ Egg Bhurji
+↳ French Omelette
+↳ Onion Crispy Fritters
+↳ Fried Egg Toast`;
             const qwenUserPrompt = `Raw Prompt:\n${raw_prompt}\n\nGroq Draft:\n${groqDraft}\n\nGemini Draft:\n${geminiDraft}\n\nSearch Context:\n${searchContext}`;
 
             let finalReply = await callQwen([
