@@ -17,12 +17,33 @@ app.add_middleware(
 )
 
 SECURITY_CODE = "kevaris 57744"
-NODE_ENGINE_URL = "http://localhost:3000/generate"
+NODE_ENGINE_URL = os.getenv("NODE_ENGINE_URL", "http://localhost:3000/generate")
 
 class FrontendPayload(BaseModel):
     code: str
     message: str
     history: Optional[List[Dict[str, Any]]] = []
+
+async def get_alternative_dishes(client: httpx.AsyncClient, clean_ingredients: str) -> List[str]:
+    """Helper function: Queries server.js for 4 quick dish names if Qwen missed them."""
+    alt_payload = {
+        "mode": "followup_chat",
+        "user_query": f"Based on these ingredients: '{clean_ingredients}', list 4 alternative dish names that can be made. Output ONLY 4 dish names, one per line, with no extra text or numbering.",
+        "history": []
+    }
+    try:
+        res = await client.post(NODE_ENGINE_URL, json=alt_payload, timeout=15.0)
+        if res.status_code == 200:
+            raw_text = res.json().get("reply", "")
+            lines = [line.strip("- *1234567890.↳").strip() for line in raw_text.split("\n") if line.strip()]
+            valid_lines = [l for l in lines if len(l) > 2 and not l.lower().startswith("here")]
+            if len(valid_lines) >= 3:
+                return valid_lines[:4]
+    except Exception as e:
+        print(f"[server.py Warning] Fallback triggered for alternative dishes: {e}")
+    
+    # Safe backup dishes in case of network timeout
+    return ["Quick Omelette", "Crispy Stir-Fry", "Spiced Scramble", "Savory Snack Bowl"]
 
 @app.post("/chat")
 async def route_user_request(payload: FrontendPayload):
@@ -35,33 +56,33 @@ async def route_user_request(payload: FrontendPayload):
         raise HTTPException(status_code=400, detail="Message content required.")
 
     # 2. Check Mini Kevaris Fast Assistant Mode
-    if prompt.startswith("MINI_KEVARIS_HELP:"):
+    is_mini_help = prompt.startswith("MINI_KEVARIS_HELP:")
+    user_intent = prompt[:22].lower()
+    ingredients_enter_mode = (user_intent == "available ingredients:")
+
+    if is_mini_help:
         node_payload = {
             "mode": "mini_kevaris",
             "query": prompt.replace("MINI_KEVARIS_HELP:", "").strip()
         }
+    elif ingredients_enter_mode:
+        print("[server.py] Intent: NEW RECIPE -> Building generation prompt for server.js")
+        clean_ingredients = prompt[22:].replace("*", "").replace("#", "").strip()
+        node_payload = {
+            "mode": "generate_recipe",
+            "clean_ingredients": clean_ingredients,
+            "raw_prompt": prompt
+        }
     else:
-        # 3. Intent Detection Logic (Exact 22-character slice)
-        user_intent = prompt[:22].lower()
-        ingredients_enter_mode = (user_intent == "available ingredients:")
+        print("[server.py] Intent: FOLLOW-UP QUESTION -> Building memory prompt for server.js")
+        clean_ingredients = ""
+        node_payload = {
+            "mode": "followup_chat",
+            "user_query": prompt,
+            "history": payload.history
+        }
 
-        if ingredients_enter_mode:
-            print("[server.py] Intent: NEW RECIPE -> Building generation prompt for server.js")
-            clean_ingredients = prompt[22:].replace("*", "").replace("#", "").strip()
-            node_payload = {
-                "mode": "generate_recipe",
-                "clean_ingredients": clean_ingredients,
-                "raw_prompt": prompt
-            }
-        else:
-            print("[server.py] Intent: FOLLOW-UP QUESTION -> Building memory prompt for server.js")
-            node_payload = {
-                "mode": "followup_chat",
-                "user_query": prompt,
-                "history": payload.history
-            }
-
-    # 4. Forward constructed prompt to server.js (Engine)
+    # 3. Forward constructed prompt to server.js (Engine)
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(NODE_ENGINE_URL, json=node_payload, timeout=60.0)
@@ -69,7 +90,20 @@ async def route_user_request(payload: FrontendPayload):
                 raise HTTPException(status_code=response.status_code, detail="Error from server.js engine.")
             
             engine_data = response.json()
-            return {"reply": engine_data.get("reply", "No response generated.")}
+            reply = engine_data.get("reply", "No response generated.")
+
+            # 4. POST-PROCESSING: Guarantee the suggestion block exists for new recipes
+            if ingredients_enter_mode and "↳" not in reply:
+                print("[server.py] Intercepted missing suggestion block. Fetching and appending automatically...")
+                dishes = await get_alternative_dishes(client, clean_ingredients)
+                
+                suggestion_block = "\n\n---\nYou can also make these recipes:\n"
+                for dish in dishes:
+                    suggestion_block += f"↳ {dish}\n"
+                
+                reply += suggestion_block
+
+            return {"reply": reply}
 
         except httpx.RequestError as exc:
             print(f"[server.py Error] Could not connect to server.js engine: {exc}")
@@ -80,7 +114,7 @@ async def route_user_request(payload: FrontendPayload):
 
 @app.get("/")
 def root():
-    return {"status": "server.py (Backend I Router) is running on port 8000!"}
+    return {"status": "server.py (Backend Router) is running on port 8000!"}
 
 if __name__ == "__main__":
     import uvicorn
