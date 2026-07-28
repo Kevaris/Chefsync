@@ -272,6 +272,15 @@ function formatMarkdown(text) {
     safeText = safeText.replace(/\n/g, "<br>");
     safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
+    safeText = safeText.replace(/(<hr>)\s*$/g, "");
+
+    // Convert ↳ lines into clickable buttons
+    safeText = safeText.replace(/↳\s*(.+)/g, function(match, dishName) {
+        const cleanName = dishName.trim().replace(/['"]/g, '');
+        return `<div onclick="sendSuggestedRecipe('${cleanName}')" style="cursor: pointer; color: #0d9488; font-weight: 600; padding: 4px 8px; margin: 4px 0; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; display: inline-block;">↳ ${cleanName}</div>`;
+    });
+
+    return safeText;
 
     return safeText;
 }
