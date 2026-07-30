@@ -109,6 +109,22 @@
 
         strong, .formatted-highlight { font-weight: bold; }
 
+        /* Suggestion chips (the "↳ Dish Name" clickable items) */
+        .suggestion-chip {
+            cursor: pointer;
+            color: #333;
+            font-weight: 600;
+            padding: 8px 12px;
+            margin: 4px 2px;
+            background-color: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            display: block;
+        }
+        .suggestion-chip:active {
+            background-color: #eee;
+        }
+
         #input-area { 
             display: flex; 
             flex-direction: column; 
@@ -262,11 +278,26 @@ const BACKEND_URL = "https://chefsync-b7x0.onrender.com/chat";
 let memory = JSON.parse(localStorage.getItem("chefsync_mem") || "[]");
 let isIngredientMode = true;
 
+// Registry of suggested dish names, keyed by an index placed in the DOM.
+// This avoids ever having to embed dish-name text inside an onclick="..." string,
+// which was the root cause of the "whole box gets sent" bug.
+let suggestionRegistry = {};
+let suggestionCounter = 0;
+
 const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("user-input");
 const sideMenu = document.getElementById("side-menu");
 const ingBuilder = document.getElementById("ingredients-builder");
 const toggleBtn = document.getElementById("toggle-mode-btn");
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
 function formatMarkdown(text) {
     if (!text) return "";
@@ -293,19 +324,33 @@ function formatMarkdown(text) {
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     safeText = safeText.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-    // 6. Convert newlines to line breaks (clean up break tags around headings/hrs)
+    // 6. Convert ↳ lines into clickable suggestion chips.
+    // IMPORTANT: matches ONE LINE ONLY (stops at \n), so multiple ↳ lines
+    // never get merged into a single match/click target. Each dish name is
+    // stored in suggestionRegistry and referenced by a numeric id in the
+    // onclick handler -- the dish text itself is never inlined into HTML
+    // attributes, so it can't leak markup into the sent message.
+    safeText = safeText.replace(/↳[ \t]*([^\n]+)/g, function(match, dishNameRaw) {
+        const cleanName = dishNameRaw.trim().replace(/['"]/g, "");
+        const id = suggestionCounter++;
+        suggestionRegistry[id] = cleanName;
+        return `<div class="suggestion-chip" data-suggestion-id="${id}" onclick="handleSuggestionClick(this)">↳ ${escapeHtml(cleanName)}</div>`;
+    });
+
+    // 7. Convert remaining newlines to line breaks (clean up break tags around headings/hrs/chips)
     safeText = safeText.replace(/\n/g, "<br>");
     safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*$/g, "");
-
-    // 7. Convert ↳ lines into clickable buttons
-    safeText = safeText.replace(/↳\s*(.+)/g, function(match, dishName) {
-        const cleanName = dishName.trim().replace(/['"]/g, '');
-        return `<div onclick="sendSuggestedRecipe('${cleanName}')" style="cursor: pointer; color: #0d9488; font-weight: 600; padding: 6px 10px; margin: 4px 2px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: inline-block;">↳ ${cleanName}</div>`;
-    });
+    safeText = safeText.replace(/(<\/div>)\s*<br\s*\/?>/gi, '$1');
 
     return safeText;
+}
+
+function handleSuggestionClick(el) {
+    const id = el.getAttribute("data-suggestion-id");
+    const dishName = suggestionRegistry[id];
+    if (dishName) sendSuggestedRecipe(dishName);
 }
 
 function hideSplash() {
