@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <link rel="canonical" href="https://kevaris.github.io/Chefsync-AI-chef/" />
-    
     <link rel="icon" type="image/jpeg" href="https://www.image2url.com/r2/default/images/1783649854423-f3662bab-45c4-4233-b2cc-aec5bc84b8fa.jpg">
     <meta name="description" content="A web-based multi-AI culinary council that generates smart, student-friendly recipes from available pantry ingredients.">
     
@@ -292,7 +291,7 @@ function formatMarkdown(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // 1. Convert Markdown Images with auto-hide fallback if broken
+    // 1. Convert Markdown Images (auto-hide broken images)
     safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy" onerror="this.style.display=\'none\'">');
 
     // 2. Convert Markdown Links
@@ -303,14 +302,14 @@ function formatMarkdown(text) {
     safeText = safeText.replace(/^## (.*$)/gim, '<h3>$1</h3>');
     safeText = safeText.replace(/^# (.*$)/gim, '<h2>$1</h2>');
 
-    // 4. Horizontal Dividing Line
+    // 4. Horizontal Line
     safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
 
     // 5. Bold & Italic text
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     safeText = safeText.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-    // 6. Line breaks formatting
+    // 6. Line breaks
     safeText = safeText.replace(/\n/g, "<br>");
     safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
@@ -398,12 +397,13 @@ function sendSuggestedRecipe(dishName) {
         toggleIngMode();
     }
     
-    userInput.value = `How do I make ${cleanName}? Please give me the full recipe and step-by-step instructions.`;
+    userInput.value = `How do I make ${cleanName}?`;
     send();
 }
 
 async function send() {
-    let rawPrompt = "";
+    let userDisplayPrompt = "";
+    let payloadPrompt = "";
 
     if (isIngredientMode) {
         const inputs = ingBuilder.querySelectorAll(".ing-input");
@@ -415,24 +415,29 @@ async function send() {
 
         if (list.length === 0) return;
 
-        // Formatted clearly so backend AI models understand the input request immediately
-        rawPrompt = "I have the following available ingredients:\n" + list.map((item, idx) => `${idx + 1}. ${item}`).join("\n") + "\n\nWhat recipes can I make with these ingredients?";
+        // Clean user bubble prompt
+        userDisplayPrompt = "Available ingredients:\n" + list.map((item, idx) => `${idx + 1}. ${item}`).join("\n");
         
+        // Explicit payload prompt forcing AI response structure
+        payloadPrompt = `${userDisplayPrompt}\n\n[STRICT INSTRUCTIONS FOR AI: Provide ONE complete primary recipe with Ingredients and Instructions using these available ingredients. At the very end of your response, strictly include this exact header followed by 3 to 4 alternative dishes formatted with '↳':\n\nYou can also make these recipes with these ingredients:\n↳ [Alternative Dish 1]\n↳ [Alternative Dish 2]\n↳ [Alternative Dish 3]]`;
+
         ingBuilder.innerHTML = `
             <div class="ing-row"><span class="ing-num">1.</span><input class="ing-input" placeholder="e.g. 2 Eggs" oninput="handleIngInput(this)"></div>
             <div class="ing-row"><span class="ing-num">2.</span><input class="ing-input" placeholder="e.g. 1 Onion" oninput="handleIngInput(this)"></div>
         `;
     } else {
-        rawPrompt = userInput.value.trim();
-        if (!rawPrompt) return;
+        userDisplayPrompt = userInput.value.trim();
+        if (!userDisplayPrompt) return;
+        
+        payloadPrompt = `${userDisplayPrompt}\n\n[STRICT INSTRUCTIONS FOR AI: Provide the requested detailed recipe. At the very end of your response, strictly include 3 to 4 alternative related dishes formatted like this:\n\nYou can also make these recipes with these ingredients:\n↳ [Alternative Dish 1]\n↳ [Alternative Dish 2]\n↳ [Alternative Dish 3]]`;
+        
         userInput.value = "";
     }
 
     hideSplash();
-    bubble("user", rawPrompt);
-    memory.push({ role: "user", content: rawPrompt });
+    bubble("user", userDisplayPrompt);
+    memory.push({ role: "user", content: userDisplayPrompt });
 
-    const payloadPrompt = rawPrompt;
     const loader = showTyping();
 
     try {
