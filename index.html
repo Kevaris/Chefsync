@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <link rel="canonical" href="https://kevaris.github.io/Chefsync-AI-chef/" />
+    
     <link rel="icon" type="image/jpeg" href="https://www.image2url.com/r2/default/images/1783649854423-f3662bab-45c4-4233-b2cc-aec5bc84b8fa.jpg">
     <meta name="description" content="A web-based multi-AI culinary council that generates smart, student-friendly recipes from available pantry ingredients.">
     
@@ -72,6 +73,7 @@
         .user { align-self: flex-end; background: var(--user); color: #000; border-bottom-right-radius: 2px; }
         .bot { align-self: flex-start; background: var(--bot); color: #000; border-bottom-left-radius: 2px; }
 
+        /* Media and typography styling inside bubbles */
         .bubble img {
             width: 100%;
             max-height: 240px;
@@ -96,7 +98,7 @@
         }
 
         .bubble h2, .bubble h3, .bubble h4 {
-            color: #111827 !important;
+            color: var(--accent);
             margin: 12px 0 4px 0;
             font-weight: bold;
         }
@@ -105,22 +107,7 @@
         .bubble h3 { font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
         .bubble h4 { font-size: 14px; }
 
-        .suggestion-option {
-            cursor: pointer;
-            color: #111827 !important;
-            font-weight: 600;
-            padding: 4px 0;
-            margin: 4px 0;
-            display: block;
-            background: transparent !important;
-            border: none !important;
-            text-align: left;
-        }
-        .suggestion-option:hover {
-            text-decoration: underline;
-        }
-
-        strong { font-weight: bold; }
+        strong, .formatted-highlight { font-weight: bold; }
 
         #input-area { 
             display: flex; 
@@ -165,7 +152,7 @@
         @keyframes blink { 50% { opacity: .3; } }
 
         .panel { display: none; position: fixed; inset: 0; background: #fff; z-index: 120; padding: 20px; overflow: auto; box-sizing: border-box; }
-        .panel h2 { margin-top: 0; color: #111827; }
+        .panel h2 { margin-top: 0; color: var(--accent); }
         
         #splash-container { 
             display: flex; 
@@ -236,11 +223,11 @@
 <div id="about" class="panel">
     <div style="background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; text-align: center;">
         <img src="https://www.image2url.com/r2/default/images/1783649854423-f3662bab-45c4-4233-b2cc-aec5bc84b8fa.jpg" alt="ChefSync" style="width:90px; border-radius: 18px;">
-        <h2 style="color: #111827; font-size: 28px; margin-bottom: 5px;">ChefSync Engine</h2>
+        <h2 style="color: #00735a; font-size: 28px; margin-bottom: 5px;">ChefSync Engine</h2>
         <p style="color: #777; font-size: 14px; margin-bottom: 15px;"><b>Version:</b> ChefSync 2.0 (Dual-Backend Pipeline)</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
         <p style="color: #444; line-height: 1.6; font-size: 15px; text-align: justify;">
-            <b>ChefSync</b> is a web-based multi-AI culinary council designed specifically for bachelors, students, and home cooks.
+            <b>ChefSync</b> is a web-based multi-AI culinary council designed specifically for bachelors, students, and home cooks. Using a Python router pipeline paired with a multi-model Node.js engine, it crafts optimal recipes using your available pantry components.
         </p>
         <button onclick="closePanel()" style="margin-top: 20px; background: #00735a; color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer;">Close</button>
     </div>
@@ -251,8 +238,8 @@
     <div style="max-width: 600px; margin: 0 auto;">
         <h2>❓ How to Use ChefSync</h2>
         <ol style="font-size: 14px; line-height: 1.6; color: #444; padding-left: 20px;">
-            <li><b>Entering Ingredients:</b> Fill in ingredients sequentially.</li>
-            <li><b>Switching to Chat Mode:</b> Tap the toggle button to ask follow-up cooking questions.</li>
+            <li><b>Entering Ingredients:</b> Prefix format handled automatically via serial-numbered inputs.</li>
+            <li><b>Switching to Chat Mode:</b> Tap the toggle button to ask questions or request adjustments.</li>
         </ol>
         <hr style="border:0; border-top: 1px solid #eee; margin: 20px 0;">
         <h3>🤖 Need Quick Assistance? Ask Mini Kevaris</h3>
@@ -288,42 +275,34 @@ function formatMarkdown(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // 1. Convert Markdown Images
-    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy" onerror="this.style.display=\'none\'">');
+    // 1. Convert Markdown Images: ![alt](url) -> HTML <img>
+    safeText = safeText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy">');
 
-    // 2. Convert Markdown Links (Filter out invalid YouTube auto-link hallucinations)
-    safeText = safeText.replace(/\[(.*?)\]\((.*?)\)/g, function(match, linkText, linkUrl) {
-        if (linkText.toLowerCase().includes("haven't listed") || linkText.toLowerCase().includes("no ingredients")) {
-            return ""; // Strip garbage auto-generated YouTube error links
-        }
-        return `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
-    });
+    // 2. Convert Markdown Links: [text](url) -> Clickable Anchor Tag
+    safeText = safeText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 3. Convert Markdown Headings
+    // 3. Convert Markdown Headings (#, ##, ###)
     safeText = safeText.replace(/^### (.*$)/gim, '<h4>$1</h4>');
     safeText = safeText.replace(/^## (.*$)/gim, '<h3>$1</h3>');
     safeText = safeText.replace(/^# (.*$)/gim, '<h2>$1</h2>');
 
-    // 4. Horizontal Line
+    // 4. Horizontal Dividing Line "---"
     safeText = safeText.replace(/(?:^|\n)\s*---\s*(?=\n|$)/g, '<hr>');
 
     // 5. Bold & Italic text
     safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     safeText = safeText.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-    // 6. Line breaks
+    // 6. Convert newlines to line breaks (clean up break tags around headings/hrs)
     safeText = safeText.replace(/\n/g, "<br>");
     safeText = safeText.replace(/(<\/h[234]>)\s*<br\s*\/?>/gi, '$1');
     safeText = safeText.replace(/(<hr>)\s*<br\s*\/?>/gi, '$1');
+    safeText = safeText.replace(/(<hr>)\s*$/g, "");
 
-    // 7. Render ↳ as clean clickable options, filtering out error strings
-    safeText = safeText.replace(/↳\s*(.+?)(?=<br>|$)/gi, function(match, dishName) {
-        const cleanName = dishName.replace(/<[^>]*>?/gm, '').trim().replace(/['"]/g, '');
-        if (cleanName.toLowerCase().includes("no dish names") || cleanName.toLowerCase().includes("no ingredients")) {
-            return ""; // Hide AI refusal artifacts
-        }
-        const escapedName = cleanName.replace(/'/g, "\\'");
-        return `<div onclick="sendSuggestedRecipe('${escapedName}')" class="suggestion-option">↳ ${cleanName}</div>`;
+    // 7. Convert ↳ lines into clickable buttons
+    safeText = safeText.replace(/↳\s*(.+)/g, function(match, dishName) {
+        const cleanName = dishName.trim().replace(/['"]/g, '');
+        return `<div onclick="sendSuggestedRecipe('${cleanName}')" style="cursor: pointer; color: #0d9488; font-weight: 600; padding: 6px 10px; margin: 4px 2px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: inline-block;">↳ ${cleanName}</div>`;
     });
 
     return safeText;
@@ -395,15 +374,15 @@ function toggleIngMode() {
 }
 
 function sendSuggestedRecipe(dishName) {
-    const cleanName = dishName.replace(/<[^>]*>?/gm, '').replace(/↳/g, '').trim();
-    if (isIngredientMode) toggleIngMode();
-    userInput.value = `How do I make ${cleanName}?`;
+    if (isIngredientMode) {
+        toggleIngMode();
+    }
+    userInput.value = "how to create a " + dishName;
     send();
 }
 
 async function send() {
-    let userDisplayPrompt = "";
-    let payloadPrompt = "";
+    let rawPrompt = "";
 
     if (isIngredientMode) {
         const inputs = ingBuilder.querySelectorAll(".ing-input");
@@ -415,34 +394,24 @@ async function send() {
 
         if (list.length === 0) return;
 
-        userDisplayPrompt = "Available ingredients:\n" + list.map((item, idx) => `${idx + 1}. ${item}`).join("\n");
+        rawPrompt = "available ingredients:" + list.map((item, idx) => `\n${idx + 1}. ${item}`).join("");
         
-        // Clean prompt format without distracting brackets
-        payloadPrompt = `Available Ingredients Provided:\n${list.map(i => `- ${i}`).join('\n')}\n\nTask: Generate ONE full step-by-step recipe using these ingredients. At the very end of your answer, list 3 to 4 additional recipe names you can make using these same ingredients using the '↳' character like this:\n\nYou can also make these recipes:\n↳ Recipe 1\n↳ Recipe 2\n↳ Recipe 3`;
-
         ingBuilder.innerHTML = `
             <div class="ing-row"><span class="ing-num">1.</span><input class="ing-input" placeholder="e.g. 2 Eggs" oninput="handleIngInput(this)"></div>
             <div class="ing-row"><span class="ing-num">2.</span><input class="ing-input" placeholder="e.g. 1 Onion" oninput="handleIngInput(this)"></div>
         `;
     } else {
-        userDisplayPrompt = userInput.value.trim();
-        if (!userDisplayPrompt) return;
-        
-        payloadPrompt = `${userDisplayPrompt}\n\nTask: Provide the recipe details. At the very end, list 3 to 4 related dish names using the '↳' format.`;
+        rawPrompt = userInput.value.trim();
+        if (!rawPrompt) return;
         userInput.value = "";
     }
 
     hideSplash();
-    bubble("user", userDisplayPrompt);
-    memory.push({ role: "user", content: userDisplayPrompt });
+    bubble("user", rawPrompt);
+    memory.push({ role: "user", content: rawPrompt });
 
+    const payloadPrompt = rawPrompt;
     const loader = showTyping();
-
-    // Sanitize context history to prevent bad LLM loop memory
-    const cleanHistory = memory
-        .filter(m => !m.content.toLowerCase().includes("haven't listed") && !m.content.toLowerCase().includes("no ingredients"))
-        .slice(-4)
-        .map(m => ({ role: m.role, content: m.content }));
 
     try {
         const r = await fetch(BACKEND_URL, {
@@ -451,7 +420,7 @@ async function send() {
             body: JSON.stringify({
                 code: SECURITY_CODE,
                 message: payloadPrompt,
-                history: cleanHistory
+                history: memory.slice(-6).map(m => ({role: m.role, content: m.content}))
             })
         });
 
