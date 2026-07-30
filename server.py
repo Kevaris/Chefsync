@@ -1,5 +1,4 @@
 import os
-import re
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,29 +45,13 @@ async def get_alternative_dishes(client: httpx.AsyncClient, clean_ingredients: s
     # Safe backup dishes in case of network timeout
     return ["Quick Omelette", "Crispy Stir-Fry", "Spiced Scramble", "Savory Snack Bowl"]
 
-def sanitize_user_message(raw_message: str) -> str:
-    """Strips HTML tags like <br> and extra leaked options from option-clicks."""
-    # Isolate only the first clicked dish text before any <br> or ↳ tags
-    clean = re.split(r'<br\s*/?>|↳|\n', raw_message, flags=re.IGNORECASE)[0].strip()
-    
-    # Reframe option clicks cleanly
-    if clean.lower().startswith("how to create a "):
-        dish_name = clean[16:].strip()
-        return f"How to create a simple {dish_name}?"
-    elif clean.lower().startswith("how to create "):
-        dish_name = clean[14:].strip()
-        return f"How to create a simple {dish_name}?"
-    
-    return clean
-
 @app.post("/chat")
 async def route_user_request(payload: FrontendPayload):
     # 1. Security Authorization
     if payload.code != SECURITY_CODE:
         raise HTTPException(status_code=403, detail="🔒 Unauthorized Security Code.")
 
-    # Sanitize incoming prompt (removes leaked HTML tags or trailing options)
-    prompt = sanitize_user_message(payload.message)
+    prompt = payload.message.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Message content required.")
 
@@ -91,7 +74,7 @@ async def route_user_request(payload: FrontendPayload):
             "raw_prompt": prompt
         }
     else:
-        print(f"[server.py] Intent: FOLLOW-UP QUESTION ({prompt}) -> Building memory prompt for server.js")
+        print("[server.py] Intent: FOLLOW-UP QUESTION -> Building memory prompt for server.js")
         clean_ingredients = ""
         node_payload = {
             "mode": "followup_chat",
@@ -136,4 +119,4 @@ def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
-    
+                
