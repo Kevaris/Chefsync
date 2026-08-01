@@ -477,10 +477,10 @@ async function send() {
         chatBox.appendChild(botBubble);
 
         if (!r.ok) {
-            botBubble.style.color = "#ff3333";
-            botBubble.innerHTML = formatMarkdown(j.detail || j.error || "System Pipeline Error.");
-            return;
-        }
+    botBubble.style.color = "#ff3333";
+    botBubble.innerHTML = formatMarkdown(j.detail || j.error || "An error occurred.");
+    return;
+    }
 
         botBubble.innerHTML = formatMarkdown(j.reply);
         memory.push({ role: "assistant", content: j.reply });
