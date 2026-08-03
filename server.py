@@ -68,25 +68,10 @@ async def route_user_request(payload: FrontendPayload):
     elif ingredients_enter_mode:
         print("[server.py] Intent: NEW RECIPE -> Building generation prompt for server.js")
         clean_ingredients = prompt[22:].replace("*", "").replace("#", "").strip()
-        
-        # Enforce edibility validation + direct formatting for server.js YouTube parser
-        guarded_prompt = f"""Available Ingredients: {clean_ingredients}
-
-CRITICAL RULES:
-1. EDIBILITY CHECK: If the ingredients list contains non-edible items, software, machinery, tools, or non-food concepts (e.g., "ChatGPT", "Gemini", "Spoon", "Plastic", "Laptop"), DO NOT create a symbolic, metaphorical, or fictional recipe. Reply ONLY with: "❌ Please enter valid, edible ingredients to generate a recipe."
-2. NO PREAMBLE: Start IMMEDIATELY on line 1 with the recipe header '### Dish Name'. Do NOT write introductory sentences like "Here is a recipe..." or "Sure!".
-3. Provide step-by-step cooking instructions.
-4. At the very end, list 3 to 4 additional recipe names you can make using these same ingredients using the '↳' character like this:
-
-You can also make these recipes:
-↳ Recipe 1
-↳ Recipe 2
-↳ Recipe 3"""
-
         node_payload = {
             "mode": "generate_recipe",
             "clean_ingredients": clean_ingredients,
-            "raw_prompt": guarded_prompt
+            "raw_prompt": prompt
         }
     else:
         print("[server.py] Intent: FOLLOW-UP QUESTION -> Building memory prompt for server.js")
@@ -107,8 +92,8 @@ You can also make these recipes:
             engine_data = response.json()
             reply = engine_data.get("reply", "No response generated.")
 
-            # 4. POST-PROCESSING: Guarantee the suggestion block exists for new recipes (only if edibility test passed)
-            if ingredients_enter_mode and "↳" not in reply and "❌" not in reply:
+            # 4. POST-PROCESSING: Guarantee the suggestion block exists for new recipes
+            if ingredients_enter_mode and "↳" not in reply:
                 print("[server.py] Intercepted missing suggestion block. Fetching and appending automatically...")
                 dishes = await get_alternative_dishes(client, clean_ingredients)
                 
@@ -134,4 +119,3 @@ def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
-                
